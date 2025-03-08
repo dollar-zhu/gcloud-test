@@ -31,14 +31,14 @@ if __name__ == "__main__":
 # from omni.omni.spiders import Omni
 # from scrapy.crawler import CrawlerProcess
 
-# program_list = [
-#         {
-#     "university": "Indiana University",
-#     "school": "Kelley School of Business",
-#     "program": "MS in Management",
-#     "url": "https://kelley.iu.edu/programs/ms-management/index.html"
-#   }
-#     ]
+program_list = [
+        {
+    "university": "Indiana University",
+    "school": "Kelley School of Business",
+    "program": "MS in Management",
+    "url": "https://kelley.iu.edu/programs/ms-management/index.html"
+  }
+    ]
 
 
 # process = CrawlerProcess()
