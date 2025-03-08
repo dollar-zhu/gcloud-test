@@ -7,6 +7,23 @@ app = Flask(__name__)
 
 # Sample input for Scrapy
 
+program_list = [
+#         {
+#     "university": "Indiana University",
+#     "school": "Kelley School of Business",
+#     "program": "MS in Management",
+#     "url": "https://kelley.iu.edu/programs/ms-management/index.html"
+#   }
+{
+    "id": 220,
+    "batch": 101,
+    "university": "Johns Hopkins University",
+    "school": "Whiting School of Engineering",
+    "program": "MSE in Financial Mathematics",
+    "url": "https://engineering.jhu.edu/ams/academics/graduate-studies/ms-in-financial-mathematics/"
+  }
+    ]
+
 
 # Scrapy process needs to be run in a separate function
 def run_scraper():
@@ -31,14 +48,7 @@ if __name__ == "__main__":
 # from omni.omni.spiders import Omni
 # from scrapy.crawler import CrawlerProcess
 
-program_list = [
-        {
-    "university": "Indiana University",
-    "school": "Kelley School of Business",
-    "program": "MS in Management",
-    "url": "https://kelley.iu.edu/programs/ms-management/index.html"
-  }
-    ]
+
 
 
 # process = CrawlerProcess()
