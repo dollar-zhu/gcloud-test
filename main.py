@@ -1,77 +1,47 @@
-from flask import Flask, jsonify
+import os
+import threading
+from flask import Flask, jsonify, request
 from scrapy.crawler import CrawlerProcess
 from omni.omni.spiders import Omni
-from twisted.internet import reactor, defer
 
 app = Flask(__name__)
 
-# Sample input for Scrapy
+# Original static program_list (optional)
+default_program_list = [
+    {
+        "id": 220,
+        "batch": 101,
+        "university": "Johns Hopkins University",
+        "school": "Whiting School of Engineering",
+        "program": "MSE in Financial Mathematics",
+        "url": "https://engineering.jhu.edu/ams/academics/graduate-studies/ms-in-financial-mathematics/"
+    }
+]
 
-program_list = [
-#         {
-#     "university": "Indiana University",
-#     "school": "Kelley School of Business",
-#     "program": "MS in Management",
-#     "url": "https://kelley.iu.edu/programs/ms-management/index.html"
-#   }
-{
-    "id": 220,
-    "batch": 101,
-    "university": "Johns Hopkins University",
-    "school": "Whiting School of Engineering",
-    "program": "MSE in Financial Mathematics",
-    "url": "https://engineering.jhu.edu/ams/academics/graduate-studies/ms-in-financial-mathematics/"
-  }
-    ]
-
-
-# Scrapy process needs to be run in a separate function
-def run_scraper():
+def run_scraper(scrape_program_list):
+    # Create a new Scrapy crawler process.
     process = CrawlerProcess()
-    process.crawl(Omni)  # Run without arguments
-    process.crawl(Omni, program_list=program_list)  # Run with arguments
-    process.start(stop_after_crawl=False)  # Ensure it doesn't stop the reactor
+    # Start crawling with the provided program_list.
+    process.crawl(Omni, program_list=scrape_program_list)
+    process.start(stop_after_crawl=True)
 
 @app.route("/")
 def index():
-    """Trigger Scrapy when the Cloud Run service is accessed."""
-    try:
-        run_scraper()
-        return jsonify({"status": "Scraper started successfully!"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"status": "API is up."})
+
+@app.route("/scrape", methods=["POST"])
+def scrape():
+    data = request.get_json()
+    # Validate request, program_list must be provided.
+    if not data or 'program_list' not in data:
+        return jsonify({"error": "Missing 'program_list' in JSON body."}), 400
+    scrape_program_list = data["program_list"]
+    # Run the scraper in a separate thread.
+    thread = threading.Thread(target=run_scraper, args=(scrape_program_list,))
+    thread.start()
+    return jsonify({"status": "Scraper started successfully!"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
-    
-
-# from omni.omni.spiders import Omni
-# from scrapy.crawler import CrawlerProcess
-
-
-
-
-# process = CrawlerProcess()
-# process.crawl(Omni)
-# process.crawl(Omni, program_list=program_list)
-# process.start()
-
-
-# Issue:
-## Google cloud run is failing because of the below error:
-# Revision 'test-image2-00001-prq' is not ready and cannot serve traffic.
-# The user-provided container failed to start and listen on the port defined provided by the PORT=8080 environment variable within the allocated timeout.
-# This can happen when the container port is misconfigured or if the timeout is too short.
-# The health check timeout can be extended.
-# Logs for this revision might contain more information.
-# Logs URL: Open Cloud Logging
-# For more troubleshooting guidance, see https://cloud.google.com/run/docs/troubleshooting#container-failed-to-start
-
-# Possible Solution:
-## The issue is because the container is not listening on the port 8080.
-## Errors building the docker image and linking it with gcr
-## Try github continuous run
-
-# What I will do:
-## 1: Rebuild the docker image and push it to gcr
-## 2: Try to do it in github
+    # The container must bind to the port defined by the PORT environment variable.
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
