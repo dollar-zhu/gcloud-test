@@ -156,73 +156,73 @@ class Omni(scrapy.Spider):
         file_name = url_to_filename(response.url)
         file_path = os.path.join(folder_path, 'raw', f'{file_name}')
         self.dictionary[file_name] = response.url
-        with open(file_path, 'w') as f:
-            f.write("# Scraped URLs\n")
-            # starting URL handling
-            f.write(f"- {response.url}\n")
+        # with open(file_path, 'w') as f:
+        #     f.write("# Scraped URLs\n")
+        #     # starting URL handling
+        #     f.write(f"- {response.url}\n")
             # f.write("\n# Links\n")
             # all links in the page
-            for link in response.css('a::attr(href)').getall():
-                absolute_link = response.urljoin(link)
-                # Truncate the # and anything following it
-                absolute_link = absolute_link.split('#')[0]
-                #get rid of the trailing /
-                absolute_link = absolute_link.rstrip('/')
-                if self.is_relevant(absolute_link):
-                    escaped_link = re.escape(link)
-                    self.logger.info(f'Processing link: {escaped_link}')
-                    try:
-                        link_text = response.css(f'a[href="{escaped_link}"]::text').get()
-                    except Exception as e:
-                        self.logger.error(f'Error processing link: {escaped_link}, error: {e}')
-                        continue
-                    # f.write(f"{link_text}- {absolute_link}\n")
-                    links.append({'text': link_text, 'link': absolute_link})
+            # for link in response.css('a::attr(href)').getall():
+            #     absolute_link = response.urljoin(link)
+            #     # Truncate the # and anything following it
+            #     absolute_link = absolute_link.split('#')[0]
+            #     #get rid of the trailing /
+            #     absolute_link = absolute_link.rstrip('/')
+            #     if self.is_relevant(absolute_link):
+            #         escaped_link = re.escape(link)
+            #         self.logger.info(f'Processing link: {escaped_link}')
+            #         try:
+            #             link_text = response.css(f'a[href="{escaped_link}"]::text').get()
+            #         except Exception as e:
+            #             self.logger.error(f'Error processing link: {escaped_link}, error: {e}')
+            #             continue
+            #         # f.write(f"{link_text}- {absolute_link}\n")
+            #         links.append({'text': link_text, 'link': absolute_link})
 
-            f.write("\n# Content\n")
-            markdown_content = "\n".join([line for line in markdown_content.split("\n") if not re.search(r'\[.*?\]\(.*?\)', line) and line.strip() != ""])
-            # f.write(markdown_content)
-            print(markdown_content)
-            #write to google cloud storage
+            # f.write("\n# Content\n")
+            # markdown_content = "\n".join([line for line in markdown_content.split("\n") if not re.search(r'\[.*?\]\(.*?\)', line) and line.strip() != ""])
+            # # f.write(markdown_content)
+            # print(markdown_content)
+            # #write to google cloud storage
+        
+        bucket_name = 'imagined_660'
+        destination_blob_name = os.path.join(folder_path, 'raw', f'{file_name}')
+        upload_string_to_gcs(bucket_name, destination_blob_name, markdown_content)
             
-            bucket_name = 'imagined_660'
-            destination_blob_name = os.path.join(folder_path, 'processed', f'{file_name}')
-            upload_string_to_gcs(bucket_name, destination_blob_name, markdown_content)
-                
-                        
-            # Follow up with the relevant links
-            evaluation_results = []
-            if response.meta['depth'] >= self.max_depth:
-                self.logger.info('Reached the max depth. Stopping the spider.')
-                return
-                
-            for absolute_link in links:
-                follow_link = absolute_link['link']
-                # if the link is not visited already, evaluate it
-                if follow_link not in self.evaluated_links[name] and response.meta['depth'] < self.max_depth and response.meta['is_start_url']: 
-                    self.logger.info('Evaluating the link' + follow_link)
-                    self.evaluated_links[name].add(follow_link)
-                    with ThreadPoolExecutor() as executor:
-                        future = executor.submit(self.evaluate_link, follow_link, absolute_link['text'], entry)
-                        evaluation = future.result()
-                    if evaluation['relevance_score'] > self.evaluation_threadhold:
-                        evaluation_results.append(evaluation)
+                    
+        # Follow up with the relevant links
+        evaluation_results = []
+        if response.meta['depth'] >= self.max_depth:
+            self.logger.info('Reached the max depth. Stopping the spider.')
+            return
             
+        for absolute_link in links:
+            follow_link = absolute_link['link']
+            # if the link is not visited already, evaluate it
+            if follow_link not in self.evaluated_links[name] and response.meta['depth'] < self.max_depth and response.meta['is_start_url']: 
+                self.logger.info('Evaluating the link' + follow_link)
+                self.evaluated_links[name].add(follow_link)
+                with ThreadPoolExecutor() as executor:
+                    future = executor.submit(self.evaluate_link, follow_link, absolute_link['text'], entry)
+                    evaluation = future.result()
+                if evaluation['relevance_score'] > self.evaluation_threadhold:
+                    evaluation_results.append(evaluation)
+        
+        
+        if evaluation_results:
+            evaluation_results.sort(key=lambda x: x['relevance_score'], reverse=True)
+            # save evaluation results to a file
+            # evaluation_file_path = os.path.join(folder_path, 'ref', f'link_evaluation.json')
+            # with open(evaluation_file_path, 'w') as f:
+            #     json.dump(evaluation_results, f, indent=4)
             
-            if evaluation_results:
-                evaluation_results.sort(key=lambda x: x['relevance_score'], reverse=True)
-                # save evaluation results to a file
-                # evaluation_file_path = os.path.join(folder_path, 'ref', f'link_evaluation.json')
-                # with open(evaluation_file_path, 'w') as f:
-                #     json.dump(evaluation_results, f, indent=4)
-                
-                # follow the most relevant link
-                for evaluation_result in evaluation_results:       
-                    if evaluation_result['relevance_score'] > self.evaluation_threadhold:
-                        self.logger.info(f"Following the link {evaluation_result['link']}")
-                        current_depth = response.meta['depth']
-                        yield scrapy.Request(evaluation_result['link'], callback=self.parse, meta={'program_info': entry, 'depth': current_depth + 1, 'is_start_url': False})
-                
+            # follow the most relevant link
+            for evaluation_result in evaluation_results:       
+                if evaluation_result['relevance_score'] > self.evaluation_threadhold:
+                    self.logger.info(f"Following the link {evaluation_result['link']}")
+                    current_depth = response.meta['depth']
+                    yield scrapy.Request(evaluation_result['link'], callback=self.parse, meta={'program_info': entry, 'depth': current_depth + 1, 'is_start_url': False})
+            
             # write self.dictionary to a file
             # dictionary_file_path = os.path.join(folder_path, 'ref', f'directory.json')
             # with open(dictionary_file_path, 'w') as f:
