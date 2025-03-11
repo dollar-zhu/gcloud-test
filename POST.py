@@ -11,9 +11,9 @@ data_to_send = {
   }]}
 
 # Local IP
-# response = requests.post('http://127.0.0.1:8080/scrape', json=data_to_send)
+response = requests.post('http://127.0.0.1:8080/scrape', json=data_to_send)
 # Internal IP
-response = requests.post('http://10.128.0.2:8080/scrape', json=data_to_send)
+# response = requests.post('http://10.128.0.2:8080/scrape', json=data_to_send)
 # External IP
 # response = requests.post('http://34.57.172.11:8080/scrape', json=data_to_send)
 
