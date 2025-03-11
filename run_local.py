@@ -10,7 +10,7 @@ from omni.omni.spiders import Omni
 from main import app, run_scraper
 # Local IP
 local_IP = 'http://127.0.0.1:8080/scrape'
-internal_IP = 'http://10.128.0.2:8080/scrape',
+internal_IP = 'http://10.128.0.2:8080/scrape'
 external_IP = 'http://34.57.172.11:8080/scrape'
 
 def flask_thread_function():
